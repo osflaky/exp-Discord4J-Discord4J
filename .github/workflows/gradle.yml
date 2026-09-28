@@ -1,0 +1,40 @@
+name: Java CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build for JDK ${{ matrix.java }} [${{ matrix.expander_leg }}]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - java: 25
+          os: macos-latest
+          arch: arm64
+          runner: macos-latest
+          expander_leg: macos-latest--arm64
+    steps:
+    - name: PR Check (PR Blocked by Dependency)
+      if: ${{ contains(toJson(github.event.pull_request.labels.*.name), 'PR 
+        depends on PR') }}
+      run: echo "::warning::This PR was marked with the label 'PR depends on PR'
+        this can cause issues in building"
+    - uses: actions/checkout@v7
+    - uses: actions/cache@v6
+      with:
+        path: ~/.gradle/caches
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+    - name: Set up JDK ${{ matrix.java }}
+      uses: actions/setup-java@v6
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: ${{ matrix.distribution || 'temurin' }}
+        architecture: ${{ matrix.arch }}
+    - name: Build with Gradle
+      run: ./gradlew build
+    timeout-minutes: 150
